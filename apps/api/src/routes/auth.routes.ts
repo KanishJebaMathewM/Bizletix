@@ -1,0 +1,132 @@
+import { Router, Request, Response } from 'express';
+import { AuthService } from '../services/auth.service.js';
+import { GoogleService } from '../services/google.service.js';
+import { requireAuth } from '../middleware/auth.middleware.js';
+import { authLimiter } from '../middleware/rate-limiter.js';
+import { env } from '../config/env.js';
+import { z } from 'zod';
+import { emailSchema } from '@bizletix/shared';
+
+const router = Router();
+
+const loginRegisterSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  name: z.string().max(100).optional(),
+});
+
+function setSessionCookie(res: Response, token: string, expiresAt: Date) {
+  res.cookie('Bizletix_session', token, {
+    httpOnly: true,
+    secure: env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    expires: expiresAt,
+    path: '/',
+  });
+}
+
+// Start Google OAuth flow
+router.get('/google', (req: Request, res: Response) => {
+  try {
+    // If user is already authenticated via session, associate connection with their user ID
+    // Otherwise, create a temporary or state-linked user upon callback
+    const userId = req.cookies?.Bizletix_temp_user || 'temp_oauth';
+    const { url } = GoogleService.generateAuthUrl(userId);
+    res.redirect(url);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Google OAuth configuration error';
+    res.redirect(`${env.APP_BASE_URL}/login?error=${encodeURIComponent(msg)}`);
+  }
+});
+
+// Google OAuth callback
+router.get('/google/callback', async (req: Request, res: Response) => {
+  const code = req.query.code as string;
+  const state = req.query.state as string;
+
+  if (!code || !state) {
+    res.redirect(`${env.APP_BASE_URL}/login?error=Missing+authorization+code+from+Google`);
+    return;
+  }
+
+  try {
+    const connection = await GoogleService.handleAuthCallback(code, state);
+    // Find or create user for this connection
+    let user;
+    if (connection.email) {
+      user = await AuthService.findOrCreateUser(connection.email);
+      // Link connection to user
+      await GoogleService.getOAuth2Client(); // ensure initialized
+    } else {
+      user = await AuthService.findOrCreateUser('google-user@Bizletix.local');
+    }
+
+    const { rawToken, expiresAt } = await AuthService.createSession(user.id);
+    setSessionCookie(res, rawToken, expiresAt);
+
+    res.redirect(`${env.APP_BASE_URL}/dashboard`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Google authentication failed';
+    res.redirect(`${env.APP_BASE_URL}/login?error=${encodeURIComponent(msg)}`);
+  }
+});
+
+// Local registration
+router.post('/register', authLimiter, async (req: Request, res: Response) => {
+  const { email, password, name } = loginRegisterSchema.parse(req.body);
+  const user = await AuthService.registerWithPassword(email, password, name);
+  const { rawToken, expiresAt } = await AuthService.createSession(user.id);
+  setSessionCookie(res, rawToken, expiresAt);
+
+  res.status(201).json({
+    success: true,
+    data: {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+      },
+    },
+  });
+});
+
+// Local login
+router.post('/login', authLimiter, async (req: Request, res: Response) => {
+  const { email, password } = loginRegisterSchema.omit({ name: true }).parse(req.body);
+  const user = await AuthService.loginWithPassword(email, password);
+  const { rawToken, expiresAt } = await AuthService.createSession(user.id);
+  setSessionCookie(res, rawToken, expiresAt);
+
+  res.json({
+    success: true,
+    data: {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+      },
+    },
+  });
+});
+
+// Current user profile
+router.get('/me', requireAuth, (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    data: {
+      user: req.user,
+    },
+  });
+});
+
+// Logout
+router.post('/logout', async (req: Request, res: Response) => {
+  const token = req.cookies?.Bizletix_session;
+  if (token) {
+    await AuthService.revokeSession(token);
+  }
+  res.clearCookie('Bizletix_session');
+  res.json({ success: true, message: 'Successfully logged out' });
+});
+
+export default router;

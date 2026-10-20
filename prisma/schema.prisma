@@ -1,0 +1,256 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                String             @id @default(uuid())
+  email             String             @unique
+  name              String?
+  passwordHash      String?            // Optional if using Google OAuth or local dev auth
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  sessions          Session[]
+  googleConnections GoogleConnection[]
+  contacts          Contact[]
+  contactLists      ContactList[]
+  templates         EmailTemplate[]
+  campaigns         Campaign[]
+  suppressions      Suppression[]
+  auditEvents       AuditEvent[]
+
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  tokenHash    String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("sessions")
+}
+
+model GoogleConnection {
+  id                    String    @id @default(uuid())
+  userId                String
+  email                 String?
+  encryptedAccessToken  String
+  encryptedRefreshToken String
+  scopes                String    // JSON string or space-delimited scopes
+  expiresAt             DateTime?
+  connectionStatus      String    @default("connected") // 'connected' | 'expired' | 'revoked' | 'error'
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user                  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaigns             Campaign[]
+
+  @@index([userId])
+  @@map("google_connections")
+}
+
+model Contact {
+  id           String              @id @default(uuid())
+  ownerId      String
+  email        String
+  firstName    String?
+  lastName     String?
+  name         String?
+  customFields Json                @default("{}")
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  owner        User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  memberships  ContactListMember[]
+  recipients   CampaignRecipient[]
+
+  @@unique([ownerId, email])
+  @@index([ownerId])
+  @@index([email])
+  @@map("contacts")
+}
+
+model ContactList {
+  id          String              @id @default(uuid())
+  ownerId     String
+  name        String
+  description String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  owner       User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  members     ContactListMember[]
+
+  @@index([ownerId])
+  @@map("contact_lists")
+}
+
+model ContactListMember {
+  id            String      @id @default(uuid())
+  contactListId String
+  contactId     String
+  createdAt     DateTime    @default(now())
+
+  contactList   ContactList @relation(fields: [contactListId], references: [id], onDelete: Cascade)
+  contact       Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([contactListId, contactId])
+  @@index([contactListId])
+  @@index([contactId])
+  @@map("contact_list_members")
+}
+
+model EmailTemplate {
+  id        String     @id @default(uuid())
+  ownerId   String
+  name      String
+  subject   String
+  htmlBody  String
+  textBody  String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  owner     User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  campaigns Campaign[]
+
+  @@index([ownerId])
+  @@map("email_templates")
+}
+
+model Campaign {
+  id                  String              @id @default(uuid())
+  ownerId             String
+  templateId          String?
+  name                String
+  status              String              @default("draft") // draft, queued, sending, paused, completed, cancelled, failed
+  subject             String
+  htmlBody            String
+  textBody            String?
+  replyTo             String?
+  senderConnectionId  String?
+  trackingOpenEnabled Boolean             @default(true)
+  trackingClickEnabled Boolean            @default(true)
+  includeUnsubscribe  Boolean             @default(true)
+  idempotencyKey      String?             @unique
+  scheduledAt         DateTime?
+  startedAt           DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  owner               User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  template            EmailTemplate?      @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  senderConnection    GoogleConnection?   @relation(fields: [senderConnectionId], references: [id], onDelete: SetNull)
+  recipients          CampaignRecipient[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@map("campaigns")
+}
+
+model CampaignRecipient {
+  id                String          @id @default(uuid())
+  campaignId        String
+  contactId         String?
+  recipientEmail    String
+  renderedSubject   String
+  status            String          @default("queued") // queued, sending, accepted_by_provider, send_failed, delivery_unknown, delivery_confirmed, bounced
+  providerMessageId String?
+  queuedAt          DateTime?       @default(now())
+  acceptedAt        DateTime?
+  failedAt          DateTime?
+  failureCode       String?
+  failureMessage    String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  campaign          Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact           Contact?        @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  trackingTokens    TrackingToken[]
+  trackingEvents    TrackingEvent[]
+
+  @@unique([campaignId, recipientEmail])
+  @@index([campaignId])
+  @@index([recipientEmail])
+  @@index([status])
+  @@map("campaign_recipients")
+}
+
+model TrackingToken {
+  id                  String            @id @default(uuid())
+  campaignRecipientId String
+  tokenHash           String            @unique
+  tokenType           String            // 'open' | 'click' | 'unsubscribe'
+  destinationUrl      String?           // Only for click tracking
+  expiresAt           DateTime?
+  createdAt           DateTime          @default(now())
+
+  campaignRecipient   CampaignRecipient @relation(fields: [campaignRecipientId], references: [id], onDelete: Cascade)
+
+  @@index([tokenHash])
+  @@index([campaignRecipientId])
+  @@map("tracking_tokens")
+}
+
+model TrackingEvent {
+  id                  String            @id @default(uuid())
+  campaignRecipientId String
+  eventType           String            // 'open' | 'click' | 'unsubscribe' | 'bounce'
+  occurredAt          DateTime          @default(now())
+  deduplicationKey    String?
+  limitedMetadata     Json              @default("{}")
+  createdAt           DateTime          @default(now())
+
+  campaignRecipient   CampaignRecipient @relation(fields: [campaignRecipientId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignRecipientId, eventType, deduplicationKey])
+  @@index([campaignRecipientId])
+  @@index([eventType])
+  @@index([occurredAt])
+  @@map("tracking_events")
+}
+
+model Suppression {
+  id              String   @id @default(uuid())
+  ownerId         String
+  emailNormalized String
+  reason          String   // 'unsubscribed' | 'bounced' | 'complaint' | 'manual'
+  source          String   // 'recipient_action' | 'admin_manual' | 'provider_feedback'
+  createdAt       DateTime @default(now())
+
+  owner           User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, emailNormalized])
+  @@index([ownerId])
+  @@index([emailNormalized])
+  @@map("suppressions")
+}
+
+model AuditEvent {
+  id              String   @id @default(uuid())
+  ownerId         String
+  actorId         String
+  action          String
+  resourceType    String
+  resourceId      String?
+  limitedMetadata Json     @default("{}")
+  createdAt       DateTime @default(now())
+
+  owner           User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_events")
+}

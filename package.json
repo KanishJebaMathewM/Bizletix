@@ -1,0 +1,39 @@
+{
+  "name": "bizletix",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bizletix — A modern YAMM-style email campaign, mail merge and tracking platform",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "npm run --workspace=@bizletix/api dev",
+    "dev:worker": "npm run --workspace=@bizletix/api worker",
+    "dev:web": "npm run --workspace=@bizletix/web dev",
+    "build": "npm run --workspace=@bizletix/shared build && npm run --workspace=@bizletix/api build && npm run --workspace=@bizletix/web build",
+    "lint": "eslint . --ext .ts,.tsx",
+    "typecheck": "npm run --workspace=@bizletix/shared typecheck && npm run --workspace=@bizletix/api typecheck && npm run --workspace=@bizletix/web typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:push": "prisma db push",
+    "prisma:seed": "tsx prisma/seed.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "@types/supertest": "^7.2.1",
+    "concurrently": "^9.1.2",
+    "dotenv": "^16.4.7",
+    "prisma": "^6.3.0",
+    "supertest": "^7.3.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.4"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.3.0"
+  }
+}
