@@ -73,36 +73,67 @@ router.get('/google/callback', async (req: Request, res: Response) => {
 
 // Local registration
 router.post('/register', authLimiter, async (req: Request, res: Response) => {
-  const { email, password, name } = loginRegisterSchema.parse(req.body);
-  const user = await AuthService.registerWithPassword(email, password, name);
-  const { rawToken, expiresAt } = await AuthService.createSession(user.id);
-  setSessionCookie(res, rawToken, expiresAt);
+  try {
+    const { email, password, name } = loginRegisterSchema.parse(req.body);
+    const user = await AuthService.registerWithPassword(email, password, name);
+    const { rawToken, expiresAt } = await AuthService.createSession(user.id);
+    setSessionCookie(res, rawToken, expiresAt);
 
-  res.status(201).json({
-    success: true,
-    data: {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
+    res.status(201).json({
+      success: true,
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+        },
       },
-    },
-  });
+    });
+  } catch (err: any) {
+    if (err.message?.includes("Can't reach database server")) {
+      return res.status(503).json({
+        success: false,
+        error: 'Database connection failed. Please start PostgreSQL (docker compose up -d) or configure DATABASE_URL in .env.',
+      });
+    }
+    res.status(err.status || 400).json({
+      success: false,
+      error: err.message || 'Registration failed',
+    });
+  }
 });
 
 // Local login
 router.post('/login', authLimiter, async (req: Request, res: Response) => {
-  const { email, password } = loginRegisterSchema.omit({ name: true }).parse(req.body);
-  const user = await AuthService.loginWithPassword(email, password);
-  const { rawToken, expiresAt } = await AuthService.createSession(user.id);
-  setSessionCookie(res, rawToken, expiresAt);
+  try {
+    const { email, password } = loginRegisterSchema.omit({ name: true }).parse(req.body);
+    const user = await AuthService.loginWithPassword(email, password);
+    const { rawToken, expiresAt } = await AuthService.createSession(user.id);
+    setSessionCookie(res, rawToken, expiresAt);
 
-  res.json({
-    success: true,
-    data: {
-      user: {
-        id: user.id,
-        email: user.email,
+    res.json({
+      success: true,
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+        },
+      },
+    });
+  } catch (err: any) {
+    if (err.message?.includes("Can't reach database server")) {
+      return res.status(503).json({
+        success: false,
+        error: 'Database connection failed. Please start PostgreSQL (docker compose up -d) or configure DATABASE_URL in .env.',
+      });
+    }
+    res.status(err.status || 400).json({
+      success: false,
+      error: err.message || 'Login failed',
+    });
+  }
+});
         name: user.name,
       },
     },
