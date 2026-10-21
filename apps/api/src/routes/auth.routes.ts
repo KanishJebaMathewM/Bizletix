@@ -19,7 +19,7 @@ function setSessionCookie(res: Response, token: string, expiresAt: Date) {
   res.cookie('Bizletix_session', token, {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
     expires: expiresAt,
     path: '/',
   });
