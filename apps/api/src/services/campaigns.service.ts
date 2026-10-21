@@ -239,12 +239,12 @@ export class CampaignsService {
 
         // Open tracking token
         if (campaign.trackingOpenEnabled) {
-          await TrackingService.createOpenToken(recipient.id);
+          await TrackingService.createOpenToken(recipient.id, tx);
         }
 
         // Unsubscribe token
         if (campaign.includeUnsubscribe) {
-          await TrackingService.createUnsubscribeToken(recipient.id);
+          await TrackingService.createUnsubscribeToken(recipient.id, tx);
         }
       }
     });

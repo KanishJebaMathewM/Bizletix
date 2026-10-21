@@ -35,6 +35,7 @@ export function NewCampaignPage() {
   const [trackingOpenEnabled, setTrackingOpenEnabled] = useState(true);
   const [trackingClickEnabled, setTrackingClickEnabled] = useState(true);
   const [includeUnsubscribe, setIncludeUnsubscribe] = useState(true);
+  const [launchCampaignId, setLaunchCampaignId] = useState<string | null>(null);
 
   // Personalization Previews State
   const [previews, setPreviews] = useState<any[]>([]);
@@ -113,28 +114,35 @@ export function NewCampaignPage() {
   // Launch campaign mutation
   const launchMutation = useMutation({
     mutationFn: async () => {
-      // Step 1: Create Campaign
-      const { campaign } = await api.post<{ campaign: any }>('/campaigns', {
-        name,
-        subject,
-        templateId: templateId || null,
-        htmlBody,
-        textBody: textBody || undefined,
-        senderConnectionId: senderConnectionId || null,
-        contactListIds: selectedListIds,
-        trackingOpenEnabled,
-        trackingClickEnabled,
-        includeUnsubscribe,
-        replyTo: replyTo || undefined,
-      });
+      let campaignId = launchCampaignId;
 
-      // Step 2: Launch idempotently
-      const idempotencyKey = crypto.randomUUID();
-      if (!campaign?.id) {
-        throw new Error('Campaign was created without an ID. Please try again.');
+      if (!campaignId) {
+        const { campaign } = await api.post<{ campaign: any }>('/campaigns', {
+          name,
+          subject,
+          templateId: templateId || null,
+          htmlBody,
+          textBody: textBody || undefined,
+          senderConnectionId: senderConnectionId || null,
+          contactListIds: selectedListIds,
+          trackingOpenEnabled,
+          trackingClickEnabled,
+          includeUnsubscribe,
+          replyTo: replyTo || undefined,
+        });
+
+        if (!campaign?.id) {
+          throw new Error('Campaign was created without an ID. Please try again.');
+        }
+        campaignId = campaign.id;
+        setLaunchCampaignId(campaignId);
       }
 
-      await api.post(`/campaigns/${campaign.id}/launch`, { idempotencyKey });
+      const idempotencyKey = crypto.randomUUID();
+      const { campaign } = await api.post<{ campaign: any }>(
+        `/campaigns/${campaignId}/launch`,
+        { idempotencyKey }
+      );
       return campaign;
     },
     onSuccess: (campaign) => {
@@ -379,6 +387,23 @@ export function NewCampaignPage() {
               <span className="font-bold text-slate-900 text-sm">{selectedListsTotalContacts}</span>
             </div>
           </div>
+
+          {launchMutation.isError && (
+            <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-rose-900">Campaign was not sent</p>
+                <p className="text-xs text-rose-700 mt-1">
+                  {launchMutation.error instanceof Error
+                    ? launchMutation.error.message
+                    : 'The server could not launch this campaign.'}
+                </p>
+                <p className="text-xs text-rose-700 mt-1">
+                  Correct the issue and use Send Again. The campaign draft will be reused.
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-between items-center pt-4 border-t border-slate-100">
             <Button variant="outline" onClick={() => setStep(1)} icon={<ChevronLeft className="w-4 h-4" />}>
@@ -662,7 +687,7 @@ export function NewCampaignPage() {
                 }
               }}
             >
-              Launch Campaign Now
+              {launchMutation.isError ? 'Send Again' : 'Launch Campaign Now'}
             </Button>
           </div>
         </Card>

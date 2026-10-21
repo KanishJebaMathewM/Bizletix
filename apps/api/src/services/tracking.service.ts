@@ -5,6 +5,7 @@ import {
   isValidRedirectUrl,
 } from '@bizletix/shared';
 import { logger } from '../lib/logger.js';
+import { Prisma } from '@prisma/client';
 
 // 1x1 transparent GIF 43 bytes
 export const TRANSPARENT_1X1_GIF = Buffer.from(
@@ -16,11 +17,14 @@ export class TrackingService {
   /**
    * Create an open tracking token for a recipient
    */
-  static async createOpenToken(campaignRecipientId: string): Promise<string> {
+  static async createOpenToken(
+    campaignRecipientId: string,
+    database: Prisma.TransactionClient | typeof prisma = prisma
+  ): Promise<string> {
     const rawToken = generateSecureToken(32);
     const tokenHash = hashToken(rawToken);
 
-    await prisma.trackingToken.create({
+    await database.trackingToken.create({
       data: {
         campaignRecipientId,
         tokenHash,
@@ -34,11 +38,14 @@ export class TrackingService {
   /**
    * Create an unsubscribe token for a recipient
    */
-  static async createUnsubscribeToken(campaignRecipientId: string): Promise<string> {
+  static async createUnsubscribeToken(
+    campaignRecipientId: string,
+    database: Prisma.TransactionClient | typeof prisma = prisma
+  ): Promise<string> {
     const rawToken = generateSecureToken(32);
     const tokenHash = hashToken(rawToken);
 
-    await prisma.trackingToken.create({
+    await database.trackingToken.create({
       data: {
         campaignRecipientId,
         tokenHash,
