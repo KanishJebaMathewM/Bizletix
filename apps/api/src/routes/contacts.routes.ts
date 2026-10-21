@@ -6,6 +6,7 @@ import {
   csvImportExecuteSchema,
   createContactSchema,
   createContactListSchema,
+  updateContactSchema,
 } from '@bizletix/shared';
 import { prisma } from '../lib/prisma.js';
 
@@ -91,6 +92,65 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     success: true,
     data: { contact },
   });
+});
+
+// Update contact details and replace its list memberships
+router.patch('/:id', requireAuth, async (req: Request, res: Response) => {
+  const body = updateContactSchema.parse(req.body);
+  const existing = await prisma.contact.findFirst({
+    where: { id: req.params.id, ownerId: req.user!.id },
+    select: { id: true },
+  });
+
+  if (!existing) {
+    res.status(404).json({
+      success: false,
+      error: { code: 'CONTACT_NOT_FOUND', message: 'Contact not found' },
+    });
+    return;
+  }
+
+  if (body.listIds) {
+    const ownedLists = await prisma.contactList.count({
+      where: { ownerId: req.user!.id, id: { in: body.listIds } },
+    });
+    if (ownedLists !== body.listIds.length) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_CONTACT_LIST', message: 'One or more selected lists are invalid' },
+      });
+      return;
+    }
+  }
+
+  const contact = await prisma.$transaction(async (tx) => {
+    const updated = await tx.contact.update({
+      where: { id: existing.id },
+      data: {
+        ...(body.email !== undefined ? { email: body.email } : {}),
+        ...(body.firstName !== undefined ? { firstName: body.firstName || null } : {}),
+        ...(body.lastName !== undefined ? { lastName: body.lastName || null } : {}),
+        ...(body.name !== undefined ? { name: body.name || null } : {}),
+        ...(body.customFields !== undefined ? { customFields: body.customFields } : {}),
+      },
+    });
+
+    if (body.listIds) {
+      await tx.contactListMember.deleteMany({ where: { contactId: existing.id } });
+      if (body.listIds.length > 0) {
+        await tx.contactListMember.createMany({
+          data: body.listIds.map((contactListId) => ({
+            contactListId,
+            contactId: existing.id,
+          })),
+        });
+      }
+    }
+
+    return updated;
+  });
+
+  res.json({ success: true, data: { contact } });
 });
 
 // Delete contact

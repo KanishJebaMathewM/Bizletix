@@ -12,6 +12,7 @@ import {
   Plus,
   Search,
   Trash2,
+  Pencil,
   Users,
   CheckCircle2,
   AlertTriangle,
@@ -27,6 +28,7 @@ export function ContactsPage() {
   // Modals state
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [isNewListOpen, setIsNewListOpen] = useState(false);
 
   // CSV Import State
@@ -43,6 +45,13 @@ export function ContactsPage() {
   const [newLastName, setNewLastName] = useState('');
   const [newCompany, setNewCompany] = useState('');
   const [newGithub, setNewGithub] = useState('');
+  const [editingContact, setEditingContact] = useState<any>(null);
+  const [editEmail, setEditEmail] = useState('');
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [editCompany, setEditCompany] = useState('');
+  const [editGithub, setEditGithub] = useState('');
+  const [editListIds, setEditListIds] = useState<string[]>([]);
 
   // New List State
   const [listName, setListName] = useState('');
@@ -116,6 +125,27 @@ export function ContactsPage() {
     },
   });
 
+  const editContactMutation = useMutation({
+    mutationFn: () =>
+      api.patch(`/contacts/${editingContact.id}`, {
+        email: editEmail,
+        firstName: editFirstName || null,
+        lastName: editLastName || null,
+        name: [editFirstName, editLastName].filter(Boolean).join(' ') || null,
+        customFields: {
+          ...(editCompany ? { company: editCompany } : {}),
+          ...(editGithub ? { github_username: editGithub } : {}),
+        },
+        listIds: editListIds,
+      }),
+    onSuccess: () => {
+      setIsEditOpen(false);
+      setEditingContact(null);
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['contact-lists'] });
+    },
+  });
+
   // Create List mutation
   const createListMutation = useMutation({
     mutationFn: () =>
@@ -148,7 +178,19 @@ export function ContactsPage() {
       setCsvContent(text);
       previewMutation.mutate(text);
     };
+
     reader.readAsText(file);
+  };
+
+  const openEditContact = (contact: any) => {
+    setEditingContact(contact);
+    setEditEmail(contact.email);
+    setEditFirstName(contact.firstName || '');
+    setEditLastName(contact.lastName || '');
+    setEditCompany(contact.customFields?.company || '');
+    setEditGithub(contact.customFields?.github_username || '');
+    setEditListIds(contact.listIds || []);
+    setIsEditOpen(true);
   };
 
   const handleExportCsv = () => {
@@ -291,6 +333,13 @@ export function ContactsPage() {
                     </td>
                     <td className="px-6 py-3.5 text-right">
                       <button
+                        onClick={() => openEditContact(c)}
+                        className="text-slate-400 hover:text-emerald-600 p-1 rounded transition-colors mr-1"
+                        title="Edit contact"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => {
                           if (confirm(`Delete contact ${c.email}?`)) {
                             deleteMutation.mutate(c.id);
@@ -353,6 +402,95 @@ export function ContactsPage() {
           </div>
         )}
       </Card>
+
+      {/* Edit Contact Modal */}
+      <Modal
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        title="Edit Recipient"
+        description="Update this contact and choose every list they should belong to."
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            editContactMutation.mutate();
+          }}
+          className="space-y-3"
+        >
+          <Input
+            label="Email Address *"
+            type="email"
+            required
+            value={editEmail}
+            onChange={(e) => setEditEmail(e.target.value)}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="First Name"
+              value={editFirstName}
+              onChange={(e) => setEditFirstName(e.target.value)}
+            />
+            <Input
+              label="Last Name"
+              value={editLastName}
+              onChange={(e) => setEditLastName(e.target.value)}
+            />
+          </div>
+          <Input
+            label="Company"
+            value={editCompany}
+            onChange={(e) => setEditCompany(e.target.value)}
+          />
+          <Input
+            label="GitHub Username"
+            value={editGithub}
+            onChange={(e) => setEditGithub(e.target.value)}
+          />
+
+          <div>
+            <p className="block text-xs font-medium text-slate-700 mb-2">Contact Lists</p>
+            {listsData?.lists.length ? (
+              <div className="space-y-2 max-h-36 overflow-y-auto rounded-lg border border-slate-200 p-3">
+                {listsData.lists.map((list) => (
+                  <label key={list.id} className="flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={editListIds.includes(list.id)}
+                      onChange={(e) =>
+                        setEditListIds((current) =>
+                          e.target.checked
+                            ? [...current, list.id]
+                            : current.filter((id) => id !== list.id)
+                        )
+                      }
+                      className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    {list.name}
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500">Create a list first to assign this contact.</p>
+            )}
+          </div>
+
+          {editContactMutation.isError && (
+            <p className="text-sm text-rose-600">
+              {editContactMutation.error instanceof Error
+                ? editContactMutation.error.message
+                : 'Unable to update contact.'}
+            </p>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" isLoading={editContactMutation.isPending}>
+              Save Changes
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* CSV Import Modal */}
       <Modal

@@ -343,6 +343,11 @@ export class ContactsService {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
+        include: {
+          memberships: {
+            select: { contactListId: true },
+          },
+        },
       }),
       prisma.suppression.findMany({
         where: { ownerId },
@@ -360,6 +365,7 @@ export class ContactsService {
       lastName: c.lastName,
       name: c.name,
       customFields: (c.customFields as Record<string, string>) || {},
+      listIds: c.memberships.map((membership) => membership.contactListId),
       createdAt: c.createdAt.toISOString(),
       updatedAt: c.updatedAt.toISOString(),
       isSuppressed: suppressedEmails.has(c.email),
