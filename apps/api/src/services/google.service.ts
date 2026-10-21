@@ -12,9 +12,6 @@ export const GMAIL_SCOPES = [
   'https://www.googleapis.com/auth/userinfo.profile',
 ];
 
-// In-memory or cache state store for CSRF validation
-const oauthStateCache = new Map<string, { userId: string; expiresAt: number }>();
-
 export class GoogleService {
   /**
    * Create an OAuth2 client configured with application credentials
@@ -28,9 +25,11 @@ export class GoogleService {
   }
 
   /**
-   * Generate authorization URL with CSRF protection state
+   * Generate authorization URL with CSRF protection state.
+   * The caller persists the encrypted state because API instances may restart
+   * while the user is completing Google's consent screen.
    */
-  static generateAuthUrl(userId: string): { url: string; state: string } {
+  static generateAuthUrl(): { url: string; state: string } {
     if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
       throw new Error(
         'Google OAuth credentials are not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.'
@@ -38,8 +37,6 @@ export class GoogleService {
     }
 
     const state = generateSecureToken(24);
-    // State expires in 10 minutes
-    oauthStateCache.set(state, { userId, expiresAt: Date.now() + 10 * 60 * 1000 });
 
     const oauth2Client = this.getOAuth2Client();
     const url = oauth2Client.generateAuthUrl({
@@ -52,18 +49,41 @@ export class GoogleService {
     return { url, state };
   }
 
+  static createAuthStateCookie(state: string, userId: string): string {
+    return encryptToken(JSON.stringify({
+      state,
+      userId,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+    }));
+  }
+
+  static validateAuthState(cookieValue: string, state: string): string {
+    try {
+      const payload = JSON.parse(decryptToken(cookieValue)) as {
+        state?: string;
+        userId?: string;
+        expiresAt?: number;
+      };
+
+      if (
+        payload.state !== state ||
+        typeof payload.userId !== 'string' ||
+        typeof payload.expiresAt !== 'number' ||
+        payload.expiresAt < Date.now()
+      ) {
+        throw new Error('Invalid or expired OAuth state parameter (potential CSRF). Please retry connecting.');
+      }
+
+      return payload.userId;
+    } catch {
+      throw new Error('Invalid or expired OAuth state parameter (potential CSRF). Please retry connecting.');
+    }
+  }
+
   /**
    * Handle OAuth2 callback, exchange code for tokens, encrypt and persist
    */
-  static async handleAuthCallback(code: string, state: string) {
-    const cached = oauthStateCache.get(state);
-    if (!cached || cached.expiresAt < Date.now()) {
-      oauthStateCache.delete(state);
-      throw new Error('Invalid or expired OAuth state parameter (potential CSRF). Please retry connecting.');
-    }
-    const { userId } = cached;
-    oauthStateCache.delete(state);
-
+  static async handleAuthCallback(code: string, userId: string) {
     const oauth2Client = this.getOAuth2Client();
     const { tokens } = await oauth2Client.getToken(code);
 

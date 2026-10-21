@@ -25,12 +25,23 @@ function setSessionCookie(res: Response, token: string, expiresAt: Date) {
   });
 }
 
+function setOAuthStateCookie(res: Response, value: string) {
+  res.cookie('Bizletix_oauth_state', value, {
+    httpOnly: true,
+    secure: env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 10 * 60 * 1000,
+    path: '/',
+  });
+}
+
 // Start Google OAuth flow
 router.get('/google', async (req: Request, res: Response) => {
   try {
     const sessionUser = await AuthService.validateSession(req.cookies?.Bizletix_session || '');
     const userId = sessionUser?.id || '';
-    const { url } = GoogleService.generateAuthUrl(userId);
+    const { url, state } = GoogleService.generateAuthUrl();
+    setOAuthStateCookie(res, GoogleService.createAuthStateCookie(state, userId));
     res.redirect(url);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Google OAuth configuration error';
@@ -49,7 +60,9 @@ router.get('/google/callback', async (req: Request, res: Response) => {
   }
 
   try {
-    const connection = await GoogleService.handleAuthCallback(code, state);
+    const userId = GoogleService.validateAuthState(req.cookies?.Bizletix_oauth_state || '', state);
+    res.clearCookie('Bizletix_oauth_state', { path: '/' });
+    const connection = await GoogleService.handleAuthCallback(code, userId);
     const { rawToken, expiresAt } = await AuthService.createSession(connection.userId);
     setSessionCookie(res, rawToken, expiresAt);
 

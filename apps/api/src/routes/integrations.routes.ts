@@ -17,7 +17,14 @@ router.get('/google/status', requireAuth, async (req: Request, res: Response) =>
 
 // Start connecting Google account from settings
 router.get('/google/connect', requireAuth, (req: Request, res: Response) => {
-  const { url } = GoogleService.generateAuthUrl(req.user!.id);
+  const { url, state } = GoogleService.generateAuthUrl();
+  res.cookie('Bizletix_oauth_state', GoogleService.createAuthStateCookie(state, req.user!.id), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 10 * 60 * 1000,
+    path: '/',
+  });
   res.json({
     success: true,
     data: { authUrl: url },
