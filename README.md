@@ -1,402 +1,324 @@
 <p align="center">
-  <img src="./logo.png" alt="Bizletix Logo" width="128" height="128" />
+  <img src="./logo.png" alt="Bizletix Logo" width="140" height="140" />
 </p>
 
-# Bizletix
+<h1 align="center">Bizletix</h1>
 
-> **"Send thoughtfully. Measure responsibly."**
+<p align="center">
+  <strong>The Modern, Self-Hostable Email Campaign & Mail Merge Platform</strong><br>
+  <em>"Send thoughtfully. Measure responsibly."</em>
+</p>
 
-**Bizletix** is a complete, self-hostable email campaign platform inspired by the core workflow of Yet Another Mail Merge (YAMM). It connects directly to authorized Gmail / Google Workspace accounts using Google OAuth 2.0, allowing you to import recipient lists from spreadsheets, compose personalized messages with dynamic merge tags, preview recipient-level outputs, schedule and dispatch messages asynchronously, track opens and link clicks with high-entropy tokens, enforce universal suppression rules, and analyze delivery performance with real persisted database records.
+<p align="center">
+  <a href="https://github.com/KanishJebaMathewM/Bizletix/actions"><img src="https://img.shields.io/badge/Build-Passing-emerald?style=flat-square&logo=githubactions&logoColor=white" alt="Build Status"></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-Strict-blue?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript"></a>
+  <a href="https://react.dev/"><img src="https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React 18"></a>
+  <a href="https://expressjs.com/"><img src="https://img.shields.io/badge/Express-4.21-000000?style=flat-square&logo=express&logoColor=white" alt="Express"></a>
+  <a href="https://www.prisma.io/"><img src="https://img.shields.io/badge/Prisma-ORM-2D3748?style=flat-square&logo=prisma&logoColor=white" alt="Prisma"></a>
+  <a href="https://neon.tech/"><img src="https://img.shields.io/badge/PostgreSQL-Neon-00E599?style=flat-square&logo=postgresql&logoColor=black" alt="Neon Postgres"></a>
+  <a href="https://tailwindcss.com/"><img src="https://img.shields.io/badge/TailwindCSS-v3-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white" alt="Tailwind"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-purple?style=flat-square" alt="License MIT"></a>
+</p>
 
----
-
-## Table of Contents
-
-1. [Product Overview](#1-product-overview)
-2. [Features](#2-features)
-3. [Architecture](#3-architecture)
-4. [Technology Stack](#4-technology-stack)
-5. [Repository Structure](#5-repository-structure)
-6. [Prerequisites](#6-prerequisites)
-7. [Local Installation](#7-local-installation)
-8. [Environment Variables](#8-environment-variables)
-9. [Database Setup & Migrations](#9-database-setup--migrations)
-10. [Redis & Queue Configuration](#10-redis--queue-configuration)
-11. [Google Cloud Project Setup](#11-google-cloud-project-setup)
-12. [OAuth Consent Screen & Scopes](#12-oauth-consent-screen--scopes)
-13. [Gmail API Configuration](#13-gmail-api-configuration)
-14. [Starting the Frontend](#14-starting-the-frontend)
-15. [Starting the Backend](#15-starting-the-backend)
-16. [Starting the Background Worker](#16-starting-the-background-worker)
-17. [Running Tests](#17-running-tests)
-18. [Configuring the Public Tracking URL](#18-configuring-the-public-tracking-url)
-19. [Deploying to Production](#19-deploying-to-production)
-20. [Security Hardening](#20-security-hardening)
-21. [Privacy & Responsible Tracking Policy](#21-privacy--responsible-tracking-policy)
-22. [Known Limitations](#22-known-limitations)
-23. [Troubleshooting](#23-troubleshooting)
+<p align="center">
+  <a href="#-quick-start-local-development">Quick Start</a> •
+  <a href="#-key-features">Features</a> •
+  <a href="#-production-deployment-vercel--render">Deploy to Vercel & Render</a> •
+  <a href="#-architecture">Architecture</a> •
+  <a href="#-security--privacy-manifesto">Security & Privacy</a> •
+  <a href="#-api-reference">API Reference</a>
+</p>
 
 ---
 
-## 1. Product Overview
+## 💡 What is Bizletix?
 
-Bizletix is designed for legitimate outreach—such as contacting open-source contributors, sending community announcements, communicating with opt-in customers, and managing professional correspondence.
+**Bizletix** is a full-featured, self-hostable email campaign and mail merge platform inspired by Yet Another Mail Merge (YAMM). It enables professionals, founders, open-source maintainers, and community leaders to compose personalized, multi-recipient outreach campaigns dispatched directly through their own authenticated **Gmail / Google Workspace** accounts.
 
-Unlike consumer mail-merge scripts that run synchronously inside Google Sheets or browser tabs, Bizletix provides a robust, decoupled server architecture with durable job queues, encrypted token storage, RFC 2822 multipart MIME construction, tracking token hashing, formula-injection-safe CSV imports and exports, and recipient privacy protections.
+Unlike spreadsheets scripts or clunky browser extensions that freeze your tabs, Bizletix is a modern **full-stack decoupled application** built with React 18, Express, Prisma ORM, PostgreSQL (Neon), BullMQ background queues, and authenticated token encryption.
 
-## 2. Features
+### Why Bizletix over Traditional Tools?
 
-- **Google OAuth 2.0 & Gmail API**: Connect personal Gmail or Google Workspace accounts requesting only the minimal `gmail.send` scope. Access and refresh tokens are encrypted at rest with AES-256-GCM.
-- **CSV Contact Importer**: Auto-detects columns (`email`, `first_name`, `last_name`, `company`, `github_username`), preserves custom fields as merge variables, validates RFC 5322 compliance, detects file duplicates, and identifies invalid rows with precise error rationales.
-- **CSV Formula Injection Safeguard**: Sanitizes all spreadsheet exports by prefixing cells starting with formula-triggering characters (`=`, `+`, `-`, `@`, `\t`, `\r`) with an apostrophe.
-- **Template Builder**: Compose subjects, HTML markup, and plain-text alternatives with dynamic merge variables (e.g., `{{first_name}}`, `{{company}}`). Authored HTML is strictly sanitized using `sanitize-html` to prevent cross-site scripting and unauthorized protocol execution.
-- **Five-Step Campaign Wizard**:
-  1. *Details*: Campaign name, connected sender account, subject line, optional reply-to.
-  2. *Audience*: Contact lists selection, real-time eligible recipient counts, automatic exclusion of suppressed and invalid emails.
-  3. *Personalization Preview*: Live recipient-level previews with missing variable warnings.
-  4. *Tracking & Privacy*: Independent toggles for open tracking, click tracking, and unsubscribe links.
-  5. *Review & Send*: Test-send email tool for visual verification, idempotency token generation to prevent duplicate launch submissions.
-- **Email-Open Tracking**: Injects a 1×1 transparent GIF with high-entropy SHA-256-hashed tokens and anti-caching HTTP headers. Labeled transparently as an *approximate signal*, explaining that email proxies may preload images.
-- **Tracked-Link Clicks**: Rewrites links to secure redirect endpoints, verifies destination schemes (strictly `http`/`https`), rejects `javascript:` / `data:` protocols, protects against open redirects and SSRF.
-- **Universal Suppression & One-Click Unsubscribe**: Functional public unsubscribe endpoints with cryptographic tokens. Suppressed contacts are barred from all future dispatches across all lists.
-- **Persisted Analytics & Visualizations**: Real database-backed metrics, rate percentages with accurate denominators, delivery breakdowns, and Recharts charts.
+| Capability | Bizletix | YAMM / Sheet Addons | Mailchimp / SendGrid |
+| :--- | :---: | :---: | :---: |
+| **Self-Hostable & 100% Free** | ✅ Open-Source (MIT) | ❌ Paid Subscription | ❌ High per-contact fees |
+| **Sends Through Personal Gmail** | ✅ Native Google OAuth | ✅ Yes | ❌ Requires custom domain DNS |
+| **Decoupled Job Queue** | ✅ Background workers | ❌ Browser/Sheet limits | ✅ Cloud queue |
+| **Token Encryption at Rest** | ✅ AES-256-GCM | ❌ Plain text / Sheets | ✅ Proprietary |
+| **CSV Formula Injection Safe** | ✅ Sanitized outputs | ❌ Vulnerable | ⚠️ Partial |
+| **Honest Signal Analytics** | ✅ Distinguishes open proxy signals | ❌ Inflates open rates | ❌ Aggressive tracking |
+| **Zero Vendor Lock-In** | ✅ Export contacts & campaigns anytime | ❌ Locked to Google Sheets | ❌ Difficult migrations |
 
 ---
 
-## 3. Architecture
+## ⚡ Key Features
 
-Bizletix is organized into three monorepo packages following a layered architecture:
+- 📨 **Native Gmail API Integration**: Connect your personal Gmail or Google Workspace with least-privilege OAuth scopes (`gmail.send`, `userinfo.email`, `userinfo.profile`). Tokens are encrypted at rest with AES-256-GCM.
+- 👥 **Smart CSV Contact Manager**: Auto-detects columns (`email`, `first_name`, `last_name`, `company`, etc.), stores unlimited custom fields, flags syntax errors with descriptive feedback, and deduplicates automatically.
+- 🛡️ **Formula Injection Defense**: Automatically neutralizes CSV injection attacks (`=`, `+`, `-`, `@`, `\t`, `\r`) during export.
+- 📝 **Rich Template Composer**: Compose HTML and plain-text templates with live merge tag chips (e.g. `{{first_name}}`, `{{company}}`). All input is sanitized with `sanitize-html` to prevent XSS.
+- 🎯 **5-Step Campaign Wizard**:
+  1. **Details**: Campaign name, sender email, custom reply-to.
+  2. **Audience**: Select lists with instant suppression filtering.
+  3. **Preview**: Recipient-by-recipient preview with fallback validation.
+  4. **Tracking & Privacy**: Toggle open tracking, click tracking, and unsubscribe links independently.
+  5. **Review & Test**: Dispatch a test email and launch with idempotency keys.
+- 🔍 **Responsible Open & Click Tracking**:
+  - High-entropy SHA-256 token hashing for tracking pixels.
+  - Transparent labeling: Open events are reported as *detected signals* (accounting for Apple Mail Privacy Protection and image preloading proxies).
+  - Open-redirect protection: strictly allowlists `http` and `https` schemes.
+- 🚫 **Universal Suppression Engine**: One-click recipient unsubscribe links with automatic global suppression across all current and future campaigns.
+- 📊 **Real-Time Analytics Dashboard**: Visual charts powered by Recharts with delivery breakdowns, click maps, and exportable recipient logs.
+- 🧪 **Offline & Mock Mode**: Run the full campaign pipeline without Google credentials using the built-in mock sender (`ENABLE_MOCK_SENDER=true`).
+
+---
+
+## 🏗️ Architecture
 
 ```
-[ React 18 + Vite Frontend ]
-       │  HTTP / REST (Cookies + CSRF / Session Auth)
-       ▼
-[ Express API Server ]
-       │──> Request Validation (Zod)
-       │──> Auth & Ownership Boundaries Middleware
-       │──> AES-256-GCM Token Encryption Service
-       │──> HTML Sanitization (sanitize-html)
-       │──> Tracking Token & Link Redirect Engine
-       ▼
-[ PostgreSQL Database (Prisma ORM) ] <───> [ Redis / BullMQ Job Queue ]
-                                                  │
-                                                  ▼
-                                       [ Background Worker ]
-                                                  │
-                                                  ▼
-                                       [ Gmail API (RFC 2822 MIME) ]
-```
-
----
-
-## 4. Technology Stack
-
-- **Frontend**: React 18, TypeScript (strict mode), Vite, Tailwind CSS, React Router v6, TanStack React Query, React Hook Form, Zod, Lucide React, Recharts.
-- **Backend**: Node.js v22+, TypeScript, Express, Prisma ORM, PostgreSQL, Redis, BullMQ, `googleapis`, `sanitize-html`, `csv-parse`, `csv-stringify`, `cookie-parser`, `helmet`.
-- **Security & Crypto**: AES-256-GCM token encryption, SHA-256 token hashing, PBKDF2 password derivation, HTTP-only SameSite cookies.
-- **Testing**: Vitest, Supertest.
-- **Infrastructure**: Docker Compose (`postgres:16-alpine`, `redis:7-alpine`).
-
----
-
-## 5. Repository Structure
-
-```
-├── apps/
-│   ├── api/                     # Express REST API & Worker
-│   │   ├── src/
-│   │   │   ├── config/          # Environment & Crypto (AES-256-GCM)
-│   │   │   ├── lib/             # Prisma client & Logger
-│   │   │   ├── middleware/      # Auth, rate-limiter, error handler
-│   │   │   ├── queue/           # BullMQ campaign queue & worker runner
-│   │   │   ├── routes/          # Auth, contacts, templates, campaigns, tracking, unsub
-│   │   │   ├── services/        # Business logic services
-│   │   │   ├── app.ts           # Express application setup
-│   │   │   ├── index.ts         # HTTP Server entrypoint
-│   │   │   └── worker.ts        # Standalone Worker entrypoint
-│   │   └── package.json
-│   └── web/                     # React + Vite Frontend
-│       ├── src/
-│       │   ├── api/             # Typed API client
-│       │   ├── components/      # UI components & AppLayout shell
-│       │   ├── context/         # AuthContext
-│       │   ├── pages/           # Dashboard, Campaigns, Contacts, Templates, Settings
-│       │   ├── App.tsx          # Router configuration
-│       │   └── main.tsx         # React root
-│       └── package.json
-├── packages/
-│   └── shared/                  # Shared types, Zod schemas, & pure utilities
-│       ├── src/
-│       │   ├── schemas.ts       # Request validation schemas
-│       │   ├── types.ts         # Domain types & interfaces
-│       │   └── utils.ts         # Merge tags, CSV escaping, email normalization
-│       └── package.json
-├── prisma/
-│   ├── schema.prisma            # PostgreSQL schema with relations & indexes
-│   └── seed.ts                  # Sample development seed data
-├── tests/
-│   ├── unit.test.ts             # Crypto, CSV parsing, templates, error classification
-│   └── integration.test.ts      # API routes, tracking endpoints, auth, mock sender
-├── docker-compose.yml           # PostgreSQL & Redis containers
-├── .env.example                 # Documented environment variables
-├── sample-contacts.csv          # Sample CSV for testing import
-├── package.json                 # Monorepo workspaces definition
-├── tsconfig.base.json           # Strict TypeScript configuration
-└── vitest.config.ts             # Vitest test runner configuration
+┌─────────────────────────────────────────────────────────────┐
+│                       React 18 + Vite                       │
+│           (Tailwind CSS, TanStack Query, Lucide)            │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ HTTPS (SameSite Cookie Auth)
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     Express API Server                      │
+│  ├── Helmet Security & CORS Allowlist                       │
+│  ├── Zod Request Validation & Ownership Boundaries          │
+│  ├── AES-256-GCM Token Encryption Engine                    │
+│  ├── Tracking Token & Redirect Dispatcher                   │
+│  └── express-async-errors Pipeline Protection               │
+└──────────────┬──────────────────────────────┬───────────────┘
+               │                              │
+               ▼                              ▼
+┌──────────────────────────────┐ ┌────────────────────────────┐
+│      Neon PostgreSQL DB      │ │   BullMQ / Redis Runner    │
+│  (Prisma ORM, 13 Relational  │ │  (Persistent Queue with    │
+│       Models & Indexes)      │ │   In-Memory Auto-Fallback) │
+└──────────────────────────────┘ └─────────────┬──────────────┘
+                                               │
+                                               ▼
+                                 ┌────────────────────────────┐
+                                 │      Gmail API Sender      │
+                                 │   (RFC 2822 MIME Builder   │
+                                 │    & Rate-Pacing Dispatch) │
+                                 └────────────────────────────┘
 ```
 
 ---
 
-## 6. Prerequisites
+## 🚀 Quick Start (Local Development)
 
-- **Node.js**: v20 or v22+
-- **npm**: v10+
-- **Docker & Docker Compose**: (Optional, for local PostgreSQL and Redis)
-- **Google Cloud Console account**: (For Gmail sending in live production)
+### 1. Prerequisites
+- **Node.js**: `v20` or `v22+`
+- **npm**: `v10+`
+- **Git**
 
----
+### 2. Clone and Install
+```bash
+git clone https://github.com/KanishJebaMathewM/Bizletix.git
+cd Bizletix
+npm install
+```
 
-## 7. Local Installation
+### 3. Configure Environment Variables
+Create your `.env` file from the example:
+```bash
+cp .env.example .env
+```
 
-1. **Clone the repository**:
-   ```bash
-   git clone <repo-url>
-   cd Mass-Mail-Sender
-   ```
-
-2. **Install all dependencies**:
-   ```bash
-   npm install
-   ```
-
-3. **Configure environment variables**:
-   ```bash
-   cp .env.example .env
-   ```
-
-4. **Generate Prisma client and build packages**:
-   ```bash
-   npm run prisma:generate
-   npm run build
-   ```
-
----
-
-## 8. Environment Variables
-
-Create a `.env` file in the project root:
-
+Your `.env` should have:
 ```env
-# Application Ports & URLs
 PORT=4000
 NODE_ENV=development
-LOG_LEVEL=info
 APP_BASE_URL=http://localhost:5173
 API_BASE_URL=http://localhost:4000
 PUBLIC_TRACKING_BASE_URL=http://localhost:4000
 CORS_ORIGIN=http://localhost:5173
 
-# Database & Cache
-DATABASE_URL=postgresql://bizletix:bizletix_dev_password@localhost:5432/bizletix?schema=public
-REDIS_URL=redis://localhost:6379
+# Database (Neon PostgreSQL)
+DATABASE_URL="your-neon-postgres-url?sslmode=require"
+REDIS_URL=none
 
-# Cryptography & Sessions
-# 32+ character random secret
-SESSION_SECRET=dev-bizletix-session-secret-change-in-production-min32chars
-# 32-byte hexadecimal key (64 hex characters) for AES-256-GCM token encryption
-TOKEN_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+# Security Keys (Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+SESSION_SECRET="dev-Bizletix-session-secret-min16chars-for-dev"
+TOKEN_ENCRYPTION_KEY="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
-# Google OAuth 2.0 Credentials (From Google Cloud Console)
-GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-GOOGLE_REDIRECT_URI=http://localhost:4000/api/auth/google/callback
+# Google OAuth Credentials (Optional for local test mode)
+GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="your-client-secret"
+GOOGLE_REDIRECT_URI="http://localhost:4000/api/auth/google/callback"
 
-# Sending Defaults
-DEFAULT_MAX_EMAILS_PER_DAY=500
-DEFAULT_SEND_DELAY_MS=300
 ENABLE_MOCK_SENDER=false
 ```
 
----
-
-## 9. Database Setup & Migrations
-
-To spin up local PostgreSQL and Redis:
-
-```bash
-docker compose up -d
-```
-
-Apply database migrations:
-
+### 4. Push Schema & Seed Database
 ```bash
 npm run prisma:push
-```
-
-Seed initial development data (creates demo account `demo@bizletix.local` with password `demo123456`, sample contact lists, contacts, and email templates):
-
-```bash
 npm run prisma:seed
 ```
 
----
-
-## 10. Redis & Queue Configuration
-
-Bizletix uses **BullMQ** with Redis for durable background queue processing:
-- Each campaign launch creates an atomic background job.
-- Rate limiting is enforced with configurable delays between messages (`DEFAULT_SEND_DELAY_MS`).
-- The worker verifies campaign cancellation or pause states in real-time before each individual dispatch.
-- **Offline / Test Resiliency**: If Redis is not running locally, the queue system automatically falls back to an asynchronous in-memory queue runner without throwing unhandled connection errors.
-
----
-
-## 11. Google Cloud Project Setup
-
-1. Open [Google Cloud Console](https://console.cloud.google.com).
-2. Create a new project named **Bizletix**.
-3. Navigate to **APIs & Services > Library** and search for **Gmail API**. Click **Enable**.
-4. Navigate to **APIs & Services > Credentials** and click **Create Credentials > OAuth client ID**.
-5. Select Application type: **Web application**.
-6. Under **Authorized redirect URIs**, add:
-   `http://localhost:4000/api/auth/google/callback` (or your production public HTTPS URL).
-7. Copy the generated **Client ID** and **Client Secret** into your `.env` file.
-
----
-
-## 12. OAuth Consent Screen & Scopes
-
-Bizletix adheres to the principle of least privilege:
-
-| Scope | Purpose |
-|---|---|
-| `https://www.googleapis.com/auth/gmail.send` | Dispatches emails on behalf of the authorized user. Does **NOT** allow reading or deleting emails. |
-| `https://www.googleapis.com/auth/userinfo.email` | Retrieves the authorized Gmail address to associate with the sender account. |
-| `https://www.googleapis.com/auth/userinfo.profile` | Obtains basic profile metadata for the sender. |
-
-> **Note**: For Google Workspace domains, configure the app as **Internal** to avoid verification screens. For personal Gmail accounts, add your account email to the **Test Users** list under the OAuth Consent Screen tab while in Development mode.
-
----
-
-## 13. Gmail API Configuration
-
-- **Daily Quotas**: Personal Gmail accounts have a sending limit of 500 emails/day; Google Workspace accounts allow up to 2,000 emails/day.
-- **Rate Pacing**: Bizletix spaces email transmissions using `DEFAULT_SEND_DELAY_MS` (default 300ms) to respect Gmail rate limits.
-- **Delivery Ambiguity**: Gmail API send acceptance (`accepted_by_provider`) confirms Gmail accepted the message for delivery; it is not a proof of final delivery to the recipient's inbox. Bizletix categorizes this accurately.
-
----
-
-## 14. Starting the Frontend
-
-To start the Vite development server on `http://localhost:5173`:
-
+### 5. Launch the Application
+Start both the API and Web frontend concurrently:
 ```bash
-npm run dev:web
+npm run dev
 ```
 
----
-
-## 15. Starting the Backend
-
-To start the Express API on `http://localhost:4000`:
-
-```bash
-npm run dev:api
-```
+- **Frontend**: [http://localhost:5173](http://localhost:5173)
+- **Backend API**: [http://localhost:4000](http://localhost:4000)
+- **Demo Credentials**: `demo@bizletix.local` / `demo123456`
 
 ---
 
-## 16. Starting the Background Worker
+## ☁️ Production Deployment (Vercel + Render)
 
-During development, the API process automatically boots the worker in the background. To run the worker as a dedicated standalone microservice in production:
+Bizletix is pre-configured with `render.yaml` for the backend and `apps/web/vercel.json` for the frontend.
 
-```bash
-npm run dev:worker
-```
+### Part 1: Deploy Backend to [Render.com](https://render.com)
+1. In Render, click **New + > Web Service** and select `KanishJebaMathewM/Bizletix`.
+2. Configure settings:
+   - **Runtime**: `Node`
+   - **Build Command**:
+     ```bash
+     npm install && npm run --workspace=@bizletix/shared build && npm run --workspace=@bizletix/api build && npx prisma generate
+     ```
+   - **Start Command**:
+     ```bash
+     node apps/api/dist/index.js
+     ```
+3. Set the Environment Variables:
+   - `NODE_ENV`: `production`
+   - `PORT`: `10000`
+   - `DATABASE_URL`: `your-neon-connection-string?sslmode=require`
+   - `SESSION_SECRET`: *Your 32+ char secret*
+   - `TOKEN_ENCRYPTION_KEY`: *Your 64-char hex key*
+   - `GOOGLE_CLIENT_ID`: *Your Google Client ID*
+   - `GOOGLE_CLIENT_SECRET`: *Your Google Client Secret*
+   - `API_BASE_URL`: `https://bizletix-api.onrender.com`
+   - `PUBLIC_TRACKING_BASE_URL`: `https://bizletix-api.onrender.com`
+   - `GOOGLE_REDIRECT_URI`: `https://bizletix-api.onrender.com/api/auth/google/callback`
+   - `REDIS_URL`: `none`
+   - `ENABLE_MOCK_SENDER`: `false`
+4. Deploy! Render will give you your backend URL (e.g. `https://bizletix-api.onrender.com`).
 
 ---
 
-## 17. Running Tests
+### Part 2: Deploy Frontend to [Vercel](https://vercel.com)
+1. In Vercel, click **Add New... > Project** and import `KanishJebaMathewM/Bizletix`.
+2. Configure settings:
+   - **Root Directory**: `apps/web`
+   - **Framework Preset**: `Vite`
+3. Add Environment Variable:
+   - `VITE_API_URL`: `https://bizletix-api.onrender.com` (your Render URL)
+4. Deploy! Vercel will give you your frontend URL (e.g. `https://bizletix.vercel.app`).
 
-Bizletix includes unit tests and integration tests covering utilities, token encryption, CSV parsing, HTML sanitization, API endpoints, and queue simulation:
+---
 
+### Part 3: Connect Both & Update Google OAuth
+1. **In Render Dashboard**: Add two env vars to your backend service:
+   - `APP_BASE_URL`: `https://bizletix.vercel.app`
+   - `CORS_ORIGIN`: `https://bizletix.vercel.app`
+2. **In Google Cloud Console**:
+   - Add `https://bizletix.vercel.app` to **Authorized JavaScript origins**.
+   - Add `https://bizletix-api.onrender.com/api/auth/google/callback` to **Authorized redirect URIs**.
+
+---
+
+## 🔒 Security & Privacy Manifesto
+
+Bizletix was architected around privacy-by-design principles:
+
+### 1. Minimal Scopes Only
+We only request `gmail.send`. Bizletix **never** reads, searches, or modifies your inbox.
+
+### 2. Token Encryption at Rest
+All Google OAuth refresh and access tokens are encrypted with authenticated **AES-256-GCM** before being saved to PostgreSQL. Keys are never logged or returned over the API.
+
+### 3. No Covert Fingerprinting
+Tracking pixels do not store IP addresses or perform hardware fingerprinting. They only measure whether an image request was dispatched.
+
+### 4. Zero Data Harvesting
+Contact lists belong exclusively to the user. Contacts are never shared, analyzed, or enriched using third-party scrapers.
+
+### 5. Universal Opt-Out
+When a recipient clicks unsubscribe, Bizletix records their email in a global suppression table. Even if the recipient is re-imported in a future CSV, the dispatcher will permanently refuse to email them.
+
+---
+
+## 📡 API Reference
+
+All protected endpoints require session cookies or `Authorization: Bearer <token>`.
+
+### Authentication
+- `POST /api/auth/register` — Register a new local account
+- `POST /api/auth/login` — Sign in with email and password
+- `GET /api/auth/me` — Retrieve active authenticated user session
+- `POST /api/auth/logout` — Terminate session and clear cookies
+- `GET /api/auth/google` — Initialize Google OAuth 2.0 flow
+- `GET /api/auth/google/callback` — Google OAuth code exchange
+
+### Campaigns
+- `GET /api/campaigns` — List user campaigns with pagination
+- `POST /api/campaigns` — Create a new draft campaign
+- `GET /api/campaigns/:id` — Get campaign details and recipient breakdown
+- `POST /api/campaigns/:id/test-send` — Send a test email to a single recipient
+- `POST /api/campaigns/:id/launch` — Launch campaign into the dispatch queue
+- `POST /api/campaigns/:id/pause` — Pause an ongoing campaign
+- `POST /api/campaigns/:id/resume` — Resume a paused campaign
+- `GET /api/campaigns/:id/analytics` — Get campaign metrics and Recharts time-series
+
+### Contacts & Templates
+- `GET /api/contacts` — Search and filter contacts
+- `POST /api/contacts/import` — Upload and parse CSV recipient files
+- `GET /api/contacts/export` — Export contacts with formula-injection sanitization
+- `GET /api/templates` — List email templates
+- `POST /api/templates` — Create sanitized HTML & plaintext template
+
+### Tracking & Public Endpoints
+- `GET /api/track/open/:token.gif` — 1x1 anti-caching open tracking pixel
+- `GET /api/track/click/:token` — Secure link redirection endpoint
+- `GET /api/unsubscribe/:token` — One-click unsubscribe handler
+- `GET /health` — API health check and version metadata
+
+---
+
+## 🧪 Testing
+
+Bizletix includes 25 unit and integration tests covering:
+- RFC email normalization & validation
+- CSV escaping and formula injection prevention
+- Merge variable template substitution
+- Cryptographic encryption (AES-256-GCM & scrypt)
+- Unsubscribe & open pixel anti-caching headers
+- Google OAuth redirection
+- Mock provider email dispatches
+
+Run the automated test suite:
 ```bash
 npm test
 ```
 
-All 25 tests execute using Vitest with 100% pass rate.
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow these steps:
+1. Fork the repository.
+2. Create a feature branch: `git checkout -b feat/my-feature`.
+3. Commit your changes: `git commit -m 'feat: add my feature'`.
+4. Ensure all tests pass: `npm test && npm run build`.
+5. Push to the branch: `git push origin feat/my-feature`.
+6. Open a Pull Request.
 
 ---
 
-## 18. Configuring the Public Tracking URL
+## 📄 License
 
-For tracking pixels and tracked-link redirects to work when emails are opened in external email clients (e.g., Gmail on mobile, Apple Mail), set `PUBLIC_TRACKING_BASE_URL` to a publicly reachable HTTPS domain:
-
-```env
-PUBLIC_TRACKING_BASE_URL=https://campaigns.yourdomain.com
-```
-
-In local development, email clients on your computer cannot fetch `http://localhost:4000` unless an HTTPS tunnel (such as Cloudflare Tunnel or ngrok) is configured.
+This project is licensed under the [MIT License](./LICENSE).
 
 ---
 
-## 19. Deploying to Production
-
-### Production Checklist
-
-1. **Database**: Managed PostgreSQL instance (e.g. AWS RDS, DigitalOcean, Supabase DB).
-2. **Redis**: Managed Redis instance with persistence.
-3. **Secrets**:
-   - Generate a cryptographically secure 64-character hex key for `TOKEN_ENCRYPTION_KEY`:
-     ```bash
-     node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-     ```
-   - Generate a 64-character random string for `SESSION_SECRET`.
-4. **Google OAuth**: Add your production domain callback URL to Google Cloud Console (e.g. `https://api.yourdomain.com/api/auth/google/callback`).
-5. **Reverse Proxy / TLS**: Terminate HTTPS with Nginx, Caddy, or Cloudflare.
-6. **Container Deployments**: Run separate containers for `web`, `api`, and `worker`.
-
----
-
-## 20. Security Hardening
-
-- **AES-256-GCM Token Encryption**: Google access and refresh tokens are encrypted at rest with authenticated encryption.
-- **SHA-256 Tracking Token Hashes**: Public URLs contain high-entropy tokens, but only cryptographic hashes are stored in the database.
-- **CSRF Defense**: OAuth exchanges validate random state parameters.
-- **XSS & Injection Defense**:
-  - HTML content is sanitized using `sanitize-html`.
-  - All CSV exports are protected against spreadsheet formula injection (`'=1+1'` -> `''=1+1'`).
-  - Destination links for click redirects are validated against a strict protocol allowlist (`http`, `https`).
-- **Owner Isolation**: All database queries enforce strict user ownership boundaries (`ownerId`).
-
----
-
-## 21. Privacy & Responsible Tracking Policy
-
-- **No Covert Fingerprinting**: Bizletix does not store full IP addresses or fingerprint devices.
-- **Honest Signal Representation**: Email opens are explicitly labeled as **Detected open events**, not proof that a human read the message. The interface explains that proxy services and privacy protection tools cache and load images automatically.
-- **Universal Suppression Enforcement**: Contacts who unsubscribe or are manually suppressed are barred from all future campaigns across all lists.
-- **Data Export & Deletion**: Users can export their full data in JSON format or delete their entire account and associated records with one click.
-
----
-
-## 22. Known Limitations
-
-- **Gmail API Delivery Visibility**: The Gmail API does not provide asynchronous webhooks for end-user inbox placement or downstream spam filtering. Bizletix records `accepted_by_provider` when Gmail accepts the send request and labels final inbox delivery as unknown unless explicit failure responses are returned.
-- **Tracking Pixels on Image-Blocking Clients**: If a recipient's email client blocks remote images, open events cannot be detected.
-- **Proxy Preloading**: Privacy proxies (e.g., Apple Mail Privacy Protection) may load tracking pixels on Apple servers before a human opens the message.
-
----
-
-## 23. Troubleshooting
-
-- **Error: "Google OAuth credentials are not configured"**:
-  Make sure `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set in `.env`.
-- **Database Connection Failure**:
-  Verify PostgreSQL is running (`docker compose ps` or local service) and matches `DATABASE_URL`.
-- **Test Send Not Delivering**:
-  Verify your Gmail account is connected under `/settings/integrations`. Alternatively, set `ENABLE_MOCK_SENDER=true` in `.env` to verify the campaign pipeline without dispatching real emails.
-
----
-
-*Built with Bizletix — Send thoughtfully. Measure responsibly.*
+<p align="center">
+  <strong>Bizletix</strong> — Send thoughtfully. Measure responsibly.
+</p>
