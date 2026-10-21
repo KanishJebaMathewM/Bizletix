@@ -91,15 +91,16 @@ router.post('/register', authLimiter, async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     if (err.message?.includes("Can't reach database server")) {
-      return res.status(503).json({
+      res.status(503).json({
         success: false,
         error: 'Database connection failed. Please start PostgreSQL (docker compose up -d) or configure DATABASE_URL in .env.',
       });
+    } else {
+      res.status(err.status || 400).json({
+        success: false,
+        error: err.message || 'Registration failed',
+      });
     }
-    res.status(err.status || 400).json({
-      success: false,
-      error: err.message || 'Registration failed',
-    });
   }
 });
 
@@ -123,21 +124,17 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     if (err.message?.includes("Can't reach database server")) {
-      return res.status(503).json({
+      res.status(503).json({
         success: false,
         error: 'Database connection failed. Please start PostgreSQL (docker compose up -d) or configure DATABASE_URL in .env.',
       });
+    } else {
+      res.status(err.status || 400).json({
+        success: false,
+        error: err.message || 'Login failed',
+      });
     }
-    res.status(err.status || 400).json({
-      success: false,
-      error: err.message || 'Login failed',
-    });
   }
-});
-        name: user.name,
-      },
-    },
-  });
 });
 
 // Current user profile

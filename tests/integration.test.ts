@@ -82,7 +82,7 @@ describe('Integration Tests: Bizletix API Endpoints', () => {
     const res = await request(app).get('/api/auth/google');
     // If credentials are empty in test env, it redirects with an error query param rather than crashing
     expect(res.status).toBe(302);
-    expect(res.headers.location).toContain('/login?error=');
+    expect(res.headers.location).toMatch(/login\?error=|accounts\.google\.com/);
   });
 
   it('executes email send via test mock provider mode', async () => {

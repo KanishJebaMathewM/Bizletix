@@ -18,30 +18,37 @@ let redisClient: Redis | null = null;
 let campaignBullQueue: Queue | null = null;
 let campaignBullWorker: Worker | null = null;
 
-try {
-  redisClient = new Redis(env.REDIS_URL, {
-    maxRetriesPerRequest: null,
-    enableReadyCheck: false,
-    retryStrategy: (times) => {
-      if (times > 3) return null; // stop reconnecting if redis not running
-      return Math.min(times * 100, 1000);
-    },
-    lazyConnect: true,
-  });
+if (env.REDIS_URL && env.REDIS_URL !== 'none') {
+  try {
+    const candidateRedis = new Redis(env.REDIS_URL, {
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false,
+      retryStrategy: () => null, // do not continuously retry if Redis server is down
+      lazyConnect: true,
+    });
 
-  redisClient.on('error', (err) => {
-    logger.debug('Redis connection error (fallback in-memory queue active)', { error: err.message });
-  });
+    candidateRedis.on('error', () => {
+      // absorb connection errors silently to allow memory-queue fallback
+    });
 
-  // Test connection async
-  redisClient.connect().then(() => {
-    logger.info('Connected to Redis for BullMQ persistent queue');
-    campaignBullQueue = new Queue(QUEUE_NAME, { connection: redisClient as any });
-  }).catch(() => {
-    logger.info('Redis not available; operating in memory-queue mode');
-  });
-} catch {
-  logger.info('Redis client initialized in fallback mode');
+    candidateRedis
+      .connect()
+      .then(() => {
+        logger.info('Connected to Redis for BullMQ persistent queue');
+        redisClient = candidateRedis;
+        campaignBullQueue = new Queue(QUEUE_NAME, { connection: redisClient as any });
+      })
+      .catch(() => {
+        logger.info('Redis not available; operating in memory-queue mode');
+        try {
+          candidateRedis.disconnect();
+        } catch {
+          // ignore
+        }
+      });
+  } catch {
+    logger.info('Redis not configured; operating in memory-queue mode');
+  }
 }
 
 /**
