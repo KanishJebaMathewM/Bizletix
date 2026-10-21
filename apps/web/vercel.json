@@ -1,0 +1,8 @@
+{
+  "framework": "vite",
+  "buildCommand": "cd ../.. && npm run --workspace=@bizletix/shared build && npm run --workspace=@bizletix/web build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

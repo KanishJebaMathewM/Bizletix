@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: bizletix-api
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: npm install && npm run --workspace=@bizletix/shared build && npm run --workspace=@bizletix/api build && npx prisma generate
+    startCommand: node apps/api/dist/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: TOKEN_ENCRYPTION_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+      - key: API_BASE_URL
+        sync: false
+      - key: PUBLIC_TRACKING_BASE_URL
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: REDIS_URL
+        value: none
+      - key: ENABLE_MOCK_SENDER
+        value: "false"
