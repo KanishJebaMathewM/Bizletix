@@ -3,6 +3,9 @@ import { ProtectedRoute } from './components/layout/ProtectedRoute.js';
 import { AppLayout } from './components/layout/AppLayout.js';
 
 import { LoginPage } from './pages/LoginPage.js';
+import { LandingPage } from './pages/LandingPage.js';
+import { PublicPrivacyPage } from './pages/PublicPrivacyPage.js';
+import { TermsPage } from './pages/TermsPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { ContactsPage } from './pages/ContactsPage.js';
 import { TemplatesPage } from './pages/TemplatesPage.js';
@@ -18,14 +21,16 @@ import { UnsubscribePage } from './pages/UnsubscribePage.js';
 export function App() {
   return (
     <Routes>
-      {/* Public routes */}
+      {/* Public pages & Google verification routes */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/privacy" element={<PublicPrivacyPage />} />
+      <Route path="/terms" element={<TermsPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/unsubscribe/:token" element={<UnsubscribePage />} />
 
       {/* Authenticated Protected Routes */}
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/campaigns" element={<CampaignsListPage />} />
           <Route path="/campaigns/new" element={<NewCampaignPage />} />
