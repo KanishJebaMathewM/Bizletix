@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext.js';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button.js';
 import { Input } from '../components/ui/Input.js';
 import { Card } from '../components/ui/Card.js';
@@ -16,12 +16,19 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [agreedToPrivacy, setAgreedToPrivacy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(oauthError);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (!agreedToPrivacy) {
+      setError('Please agree to the Privacy Policy before continuing.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -39,6 +46,11 @@ export function LoginPage() {
   };
 
   const handleGoogleSignIn = () => {
+    if (!agreedToPrivacy) {
+      setError('Please agree to the Privacy Policy before continuing.');
+      return;
+    }
+
     const apiUrl = import.meta.env.VITE_API_URL || '';
     window.location.href = `${apiUrl}/api/auth/google`;
   };
@@ -125,6 +137,23 @@ export function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+
+            <label className="flex items-start gap-2.5 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                required
+                checked={agreedToPrivacy}
+                onChange={(e) => setAgreedToPrivacy(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              <span>
+                I agree to the{' '}
+                <Link to="/privacy" target="_blank" rel="noreferrer" className="font-medium text-emerald-700 underline hover:text-emerald-800">
+                  Privacy Policy
+                </Link>
+                .
+              </span>
+            </label>
 
             <Button type="submit" className="w-full" isLoading={loading}>
               {isRegister ? 'Create Account' : 'Sign In'}
