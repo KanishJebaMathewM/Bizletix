@@ -64,7 +64,8 @@ export class EmailSenderService {
       `--${boundary}--`
     );
 
-    const fullMessage = headers.join('\r\n') + '\r\n' + parts.join('\r\n');
+    // MIME headers must be followed by an empty line before the first body part.
+    const fullMessage = headers.join('\r\n') + '\r\n\r\n' + parts.join('\r\n');
 
     // Base64url encode without padding as required by Gmail API
     return Buffer.from(fullMessage)
