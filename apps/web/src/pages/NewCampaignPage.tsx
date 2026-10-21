@@ -114,7 +114,7 @@ export function NewCampaignPage() {
   const launchMutation = useMutation({
     mutationFn: async () => {
       // Step 1: Create Campaign
-      const campaign = await api.post<any>('/campaigns', {
+      const { campaign } = await api.post<{ campaign: any }>('/campaigns', {
         name,
         subject,
         templateId: templateId || null,
@@ -130,6 +130,10 @@ export function NewCampaignPage() {
 
       // Step 2: Launch idempotently
       const idempotencyKey = crypto.randomUUID();
+      if (!campaign?.id) {
+        throw new Error('Campaign was created without an ID. Please try again.');
+      }
+
       await api.post(`/campaigns/${campaign.id}/launch`, { idempotencyKey });
       return campaign;
     },
