@@ -106,10 +106,13 @@ export class SuppressionService {
    * Process unsubscribe request via token
    */
   static async processUnsubscribeByToken(rawToken: string, reasonDetails?: string) {
-    const tokenHash = hashToken(rawToken);
-
-    const tokenRecord = await prisma.trackingToken.findUnique({
-      where: { tokenHash },
+    const tokenRecord = await prisma.trackingToken.findFirst({
+      where: {
+        OR: [
+          { tokenHash: hashToken(rawToken) },
+          { tokenHash: rawToken },
+        ],
+      },
       include: {
         campaignRecipient: {
           include: {

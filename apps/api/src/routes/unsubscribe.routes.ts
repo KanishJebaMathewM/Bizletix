@@ -14,9 +14,13 @@ router.get('/:token', async (req: Request, res: Response) => {
   }
 
   try {
-    const tokenHash = hashToken(token);
-    const tokenRecord = await prisma.trackingToken.findUnique({
-      where: { tokenHash },
+    const tokenRecord = await prisma.trackingToken.findFirst({
+      where: {
+        OR: [
+          { tokenHash: hashToken(token) },
+          { tokenHash: token },
+        ],
+      },
       include: {
         campaignRecipient: {
           include: { campaign: true },

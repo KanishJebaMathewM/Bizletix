@@ -126,7 +126,7 @@ export async function processCampaignJob(campaignId: string): Promise<void> {
         const openTokenRecord = recipient.trackingTokens.find((t) => t.tokenType === 'open');
         if (openTokenRecord) {
           // Find or get token
-          const openPixel = buildTrackingPixelHtml(env.PUBLIC_TRACKING_BASE_URL, openTokenRecord.id);
+          const openPixel = buildTrackingPixelHtml(env.PUBLIC_TRACKING_BASE_URL, openTokenRecord.tokenHash);
           resolvedHtml += openPixel;
         }
       }
@@ -135,11 +135,11 @@ export async function processCampaignJob(campaignId: string): Promise<void> {
       if (campaign.includeUnsubscribe) {
         const unsubTokenRecord = recipient.trackingTokens.find((t) => t.tokenType === 'unsubscribe');
         if (unsubTokenRecord) {
-          const unsubHtml = buildUnsubscribeFooter(env.PUBLIC_TRACKING_BASE_URL, unsubTokenRecord.id, true);
+          const unsubHtml = buildUnsubscribeFooter(env.PUBLIC_TRACKING_BASE_URL, unsubTokenRecord.tokenHash, true);
           resolvedHtml += unsubHtml;
 
           if (resolvedText) {
-            resolvedText += buildUnsubscribeFooter(env.PUBLIC_TRACKING_BASE_URL, unsubTokenRecord.id, false);
+            resolvedText += buildUnsubscribeFooter(env.PUBLIC_TRACKING_BASE_URL, unsubTokenRecord.tokenHash, false);
           }
         }
       }

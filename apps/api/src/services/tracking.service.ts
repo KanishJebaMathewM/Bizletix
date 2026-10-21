@@ -13,6 +13,23 @@ export const TRANSPARENT_1X1_GIF = Buffer.from(
   'base64'
 );
 
+async function findTrackingToken(presentedToken: string) {
+  const tokenHash = hashToken(presentedToken);
+  return prisma.trackingToken.findFirst({
+    where: {
+      OR: [
+        { tokenHash },
+        { tokenHash: presentedToken },
+      ],
+    },
+    include: {
+      campaignRecipient: {
+        include: { campaign: true },
+      },
+    },
+  });
+}
+
 export class TrackingService {
   /**
    * Create an open tracking token for a recipient
@@ -119,15 +136,7 @@ export class TrackingService {
     metadata?: { userAgent?: string }
   ): Promise<Buffer> {
     try {
-      const tokenHash = hashToken(rawToken);
-      const tokenRecord = await prisma.trackingToken.findUnique({
-        where: { tokenHash },
-        include: {
-          campaignRecipient: {
-            include: { campaign: true },
-          },
-        },
-      });
+      const tokenRecord = await findTrackingToken(rawToken);
 
       if (!tokenRecord || tokenRecord.tokenType !== 'open') {
         // Return 1x1 GIF anyway to not break email rendering
@@ -192,15 +201,7 @@ export class TrackingService {
     rawToken: string,
     metadata?: { userAgent?: string }
   ): Promise<string> {
-    const tokenHash = hashToken(rawToken);
-    const tokenRecord = await prisma.trackingToken.findUnique({
-      where: { tokenHash },
-      include: {
-        campaignRecipient: {
-          include: { campaign: true },
-        },
-      },
-    });
+    const tokenRecord = await findTrackingToken(rawToken);
 
     if (
       !tokenRecord ||
