@@ -3,6 +3,7 @@ import { env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
 import { encryptToken, decryptToken, generateSecureToken } from '../config/crypto.js';
 import { logger } from '../lib/logger.js';
+import { normalizeEmail } from '@bizletix/shared';
 
 // The exact minimal scopes needed: gmail.send (send only, not broad mailbox reading), plus identity scopes
 export const GMAIL_SCOPES = [
@@ -76,9 +77,27 @@ export class GoogleService {
     const userInfo = await oauth2.userinfo.get();
     const connectedEmail = userInfo.data.email || undefined;
 
+    let connectionUserId = userId;
+    if (!connectionUserId || !(await prisma.user.findUnique({ where: { id: connectionUserId }, select: { id: true } }))) {
+      if (!connectedEmail) {
+        throw new Error('Google did not return an email address to create your Bizletix account');
+      }
+
+      const user = await prisma.user.upsert({
+        where: { email: normalizeEmail(connectedEmail) },
+        update: { name: userInfo.data.name ?? undefined },
+        create: {
+          email: normalizeEmail(connectedEmail),
+          name: userInfo.data.name ?? null,
+        },
+        select: { id: true },
+      });
+      connectionUserId = user.id;
+    }
+
     // Check if user already had a connection or existing refresh token
     const existingConnection = await prisma.googleConnection.findFirst({
-      where: { userId },
+      where: { userId: connectionUserId },
     });
 
     // If Google didn't return a refresh token (can happen on re-auth without prompt), retain existing
@@ -92,7 +111,7 @@ export class GoogleService {
     }
 
     if (!refreshTokenToSave) {
-      logger.warn('No refresh token received from Google OAuth exchange', { userId });
+      logger.warn('No refresh token received from Google OAuth exchange', { userId: connectionUserId });
     }
 
     const encryptedAccessToken = encryptToken(tokens.access_token);
@@ -116,7 +135,7 @@ export class GoogleService {
     } else {
       connection = await prisma.googleConnection.create({
         data: {
-          userId,
+          userId: connectionUserId,
           email: connectedEmail,
           encryptedAccessToken,
           encryptedRefreshToken,
@@ -129,8 +148,8 @@ export class GoogleService {
 
     await prisma.auditEvent.create({
       data: {
-        ownerId: userId,
-        actorId: userId,
+        ownerId: connectionUserId,
+        actorId: connectionUserId,
         action: 'google_connected',
         resourceType: 'google_connection',
         resourceId: connection.id,

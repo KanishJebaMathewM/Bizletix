@@ -26,11 +26,10 @@ function setSessionCookie(res: Response, token: string, expiresAt: Date) {
 }
 
 // Start Google OAuth flow
-router.get('/google', (req: Request, res: Response) => {
+router.get('/google', async (req: Request, res: Response) => {
   try {
-    // If user is already authenticated via session, associate connection with their user ID
-    // Otherwise, create a temporary or state-linked user upon callback
-    const userId = req.cookies?.Bizletix_temp_user || 'temp_oauth';
+    const sessionUser = await AuthService.validateSession(req.cookies?.Bizletix_session || '');
+    const userId = sessionUser?.id || '';
     const { url } = GoogleService.generateAuthUrl(userId);
     res.redirect(url);
   } catch (err: unknown) {
@@ -51,17 +50,7 @@ router.get('/google/callback', async (req: Request, res: Response) => {
 
   try {
     const connection = await GoogleService.handleAuthCallback(code, state);
-    // Find or create user for this connection
-    let user;
-    if (connection.email) {
-      user = await AuthService.findOrCreateUser(connection.email);
-      // Link connection to user
-      await GoogleService.getOAuth2Client(); // ensure initialized
-    } else {
-      user = await AuthService.findOrCreateUser('google-user@Bizletix.local');
-    }
-
-    const { rawToken, expiresAt } = await AuthService.createSession(user.id);
+    const { rawToken, expiresAt } = await AuthService.createSession(connection.userId);
     setSessionCookie(res, rawToken, expiresAt);
 
     res.redirect(`${env.APP_BASE_URL}/dashboard`);
