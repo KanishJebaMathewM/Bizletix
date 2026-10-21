@@ -120,7 +120,7 @@ export class ContactsService {
     mapping: ColumnMapping,
     options: { targetListId?: string | null; skipDuplicates?: boolean } = {}
   ): Promise<CSVImportResult> {
-    const { targetListId, skipDuplicates = true } = options;
+    const { targetListId } = options;
 
     if (!mapping.email) {
       throw new Error('Email column mapping is required');
@@ -201,11 +201,8 @@ export class ContactsService {
       // Check if already in DB
       if (contactMap.has(email)) {
         result.duplicateRecords++;
-        if (!skipDuplicates) {
-          // If not skipping duplicates, we still want to ensure it's in the target list
-          if (targetListId) {
-            memberLinksToCreate.push(contactMap.get(email)!);
-          }
+        if (targetListId) {
+          memberLinksToCreate.push(contactMap.get(email)!);
         }
         return;
       }
@@ -252,30 +249,30 @@ export class ContactsService {
       });
 
       result.successfullyImported = contactsToCreate.length;
+    }
 
-      // If a target list was chosen, link newly created contacts to the list
-      if (targetListId) {
-        const newlyCreated = await prisma.contact.findMany({
-          where: {
-            ownerId,
-            email: { in: contactsToCreate.map((c) => c.email) },
-          },
-          select: { id: true },
+    // Link both new contacts and existing contacts selected for the target list.
+    if (targetListId && (contactsToCreate.length > 0 || memberLinksToCreate.length > 0)) {
+      const importedEmails = contactsToCreate.map((c) => c.email);
+      const newlyCreated = importedEmails.length > 0
+        ? await prisma.contact.findMany({
+            where: { ownerId, email: { in: importedEmails } },
+            select: { id: true },
+          })
+        : [];
+
+      const allMemberIds = Array.from(
+        new Set([...memberLinksToCreate, ...newlyCreated.map((c) => c.id)])
+      );
+
+      if (allMemberIds.length > 0) {
+        await prisma.contactListMember.createMany({
+          data: allMemberIds.map((cId) => ({
+            contactListId: targetListId,
+            contactId: cId,
+          })),
+          skipDuplicates: true,
         });
-
-        const allMemberIds = Array.from(
-          new Set([...memberLinksToCreate, ...newlyCreated.map((c) => c.id)])
-        );
-
-        if (allMemberIds.length > 0) {
-          await prisma.contactListMember.createMany({
-            data: allMemberIds.map((cId) => ({
-              contactListId: targetListId,
-              contactId: cId,
-            })),
-            skipDuplicates: true,
-          });
-        }
       }
     }
 

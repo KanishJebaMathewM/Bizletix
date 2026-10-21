@@ -49,7 +49,7 @@ export function ContactsPage() {
   const [listDesc, setListDesc] = useState('');
 
   // Fetch contacts
-  const { data: contactsData, isLoading } = useQuery({
+  const { data: contactsData, isLoading, isError: contactsError, error: contactsQueryError, refetch } = useQuery({
     queryKey: ['contacts', page, search, selectedListId],
     queryFn: () =>
       api.get<any>(
@@ -60,7 +60,7 @@ export function ContactsPage() {
   });
 
   // Fetch lists
-  const { data: listsData } = useQuery({
+  const { data: listsData, isError: listsError, error: listsQueryError } = useQuery({
     queryKey: ['contact-lists'],
     queryFn: () => api.get<{ lists: any[] }>('/contacts/lists/all'),
   });
@@ -237,6 +237,29 @@ export function ContactsPage() {
       <Card className="p-0 overflow-hidden">
         {isLoading ? (
           <div className="p-8 text-center text-slate-400">Loading contacts...</div>
+        ) : contactsError ? (
+          <div className="p-12 text-center">
+            <AlertTriangle className="w-10 h-10 text-rose-300 mx-auto mb-3" />
+            <h3 className="text-base font-semibold text-slate-800">Unable to load contacts</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              {contactsQueryError instanceof Error
+                ? contactsQueryError.message
+                : 'The contacts service returned an unexpected error.'}
+            </p>
+            <Button className="mt-4" size="sm" onClick={() => refetch()}>
+              Try Again
+            </Button>
+          </div>
+        ) : listsError ? (
+          <div className="p-12 text-center">
+            <AlertTriangle className="w-10 h-10 text-rose-300 mx-auto mb-3" />
+            <h3 className="text-base font-semibold text-slate-800">Unable to load contact lists</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              {listsQueryError instanceof Error
+                ? listsQueryError.message
+                : 'The contact lists service returned an unexpected error.'}
+            </p>
+          </div>
         ) : contactsData?.contacts && contactsData.contacts.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm text-slate-600">
